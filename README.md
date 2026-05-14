@@ -84,3 +84,13 @@ Untuk membuka Prisma Studio:
 cd backend
 npm run prisma:studio
 ```
+
+## GitHub Actions
+
+CI berjalan saat `push` ke `main` dan saat `pull_request` ke `main`.
+
+Workflow mengecek:
+
+- Frontend: `npm ci`, `npm run lint`, `npm run build`
+- Backend: `npm ci`, Prisma validate/generate, `npm run lint:check`, `npm run test`, `npm run build`
+- Docker: `docker compose config`
