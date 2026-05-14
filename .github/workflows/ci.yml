@@ -16,10 +16,19 @@ jobs:
     defaults:
       run:
         working-directory: frontend
+        shell: bash
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Print runtime info
+        run: |
+          set -euxo pipefail
+          node --version
+          npm --version
+          pwd
+          ls -la
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -29,15 +38,29 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
 
       - name: Install dependencies
-        run: npm ci
+        run: |
+          set -o pipefail
+          npm ci 2>&1 | tee frontend-npm-ci.log
 
       - name: Lint
-        run: npm run lint
+        run: |
+          set -o pipefail
+          npm run lint 2>&1 | tee frontend-lint.log
 
       - name: Build
         env:
           NEXT_PUBLIC_API_URL: http://localhost:3001
-        run: npm run build
+        run: |
+          set -o pipefail
+          npm run build 2>&1 | tee frontend-build.log
+
+      - name: Upload frontend logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-ci-logs
+          path: frontend/*.log
+          if-no-files-found: ignore
 
   backend:
     name: Backend
@@ -46,6 +69,7 @@ jobs:
     defaults:
       run:
         working-directory: backend
+        shell: bash
 
     env:
       DATABASE_URL: file:./dev.db
@@ -57,6 +81,14 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Print runtime info
+        run: |
+          set -euxo pipefail
+          node --version
+          npm --version
+          pwd
+          ls -la
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -65,22 +97,42 @@ jobs:
           cache-dependency-path: backend/package-lock.json
 
       - name: Install dependencies
-        run: npm ci
+        run: |
+          set -o pipefail
+          npm ci 2>&1 | tee backend-npm-ci.log
 
       - name: Validate Prisma schema
-        run: npx prisma validate
+        run: |
+          set -o pipefail
+          npx prisma validate 2>&1 | tee backend-prisma-validate.log
 
       - name: Generate Prisma client
-        run: npm run prisma:generate
+        run: |
+          set -o pipefail
+          npm run prisma:generate 2>&1 | tee backend-prisma-generate.log
 
       - name: Lint
-        run: npm run lint:check
+        run: |
+          set -o pipefail
+          npm run lint:check 2>&1 | tee backend-lint.log
 
       - name: Test
-        run: npm run test
+        run: |
+          set -o pipefail
+          npm run test 2>&1 | tee backend-test.log
 
       - name: Build
-        run: npm run build
+        run: |
+          set -o pipefail
+          npm run build 2>&1 | tee backend-build.log
+
+      - name: Upload backend logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-ci-logs
+          path: backend/*.log
+          if-no-files-found: ignore
 
   docker:
     name: Docker Compose
@@ -91,4 +143,14 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Validate Docker Compose config
-        run: docker compose config
+        run: |
+          set -o pipefail
+          docker compose config 2>&1 | tee docker-compose-config.log
+
+      - name: Upload Docker logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: docker-ci-logs
+          path: docker-compose-config.log
+          if-no-files-found: ignore
